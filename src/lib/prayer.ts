@@ -30,7 +30,14 @@ export async function fetchPrayerTimes(
     longitude: number,
     date?: Date
 ): Promise<PrayerSchedule> {
-    const d = date || new Date();
+    let d = date || new Date();
+
+    // Before Fajr (midnight–5AM), use yesterday's date so the Hijri date
+    // and prayer schedule reflect the current fasting day (still previous day)
+    if (!date && d.getHours() < 5) {
+        d = new Date(d.getTime() - 24 * 60 * 60 * 1000);
+    }
+
     const dateStr = `${d.getDate()}-${d.getMonth() + 1}-${d.getFullYear()}`;
     const isoDate = d.toISOString().split('T')[0];
 

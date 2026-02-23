@@ -9,8 +9,12 @@ import { PrayerSkeleton } from '@/components/ui/Skeleton';
 import Button from '@/components/ui/Button';
 
 function getCacheKey(lat: number, lng: number): string {
-    const today = new Date().toISOString().split('T')[0];
-    return `prayer-cache-${today}-${lat.toFixed(2)}-${lng.toFixed(2)}`;
+    let d = new Date();
+    if (d.getHours() < 5) {
+        d = new Date(d.getTime() - 24 * 60 * 60 * 1000);
+    }
+    const dateKey = d.toISOString().split('T')[0];
+    return `prayer-cache-${dateKey}-${lat.toFixed(2)}-${lng.toFixed(2)}`;
 }
 
 export default function PrayerTimesDisplay() {
