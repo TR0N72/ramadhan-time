@@ -37,6 +37,17 @@ function parseTimeToMinutes(timeStr: string): number {
     return h * 60 + m;
 }
 
+function getLocalDate(timezone: string): string {
+    const now = new Date();
+    const parts = now.toLocaleDateString('en-CA', { timeZone: timezone }).split('-');
+    return `${parseInt(parts[2])}-${parseInt(parts[1])}-${parseInt(parts[0])}`;
+}
+
+function getLocalDateKey(timezone: string): string {
+    const now = new Date();
+    return now.toLocaleDateString('en-CA', { timeZone: timezone });
+}
+
 export async function GET(request: Request) {
     const authHeader = request.headers.get('authorization');
     const cronSecret = request.headers.get('x-vercel-cron-secret');
@@ -99,10 +110,9 @@ export async function GET(request: Request) {
 
         for (const [locKey, group] of locationGroups) {
             try {
-                const dateStr = `${nowUtc.getUTCDate()}-${nowUtc.getUTCMonth() + 1}-${nowUtc.getUTCFullYear()}`;
-                const url = `https://api.aladhan.com/v1/timings/${dateStr}?latitude=${group.lat}&longitude=${group.lng}&method=11`;
-
-                const res = await fetch(url);
+                const res = await fetch(
+                    `https://api.aladhan.com/v1/timings?latitude=${group.lat}&longitude=${group.lng}&method=11`
+                );
                 if (!res.ok) {
                     results.push(`${locKey}: API error ${res.status}`);
                     continue;
@@ -125,13 +135,35 @@ export async function GET(request: Request) {
                 });
                 const [localH, localM] = localTimeStr.split(':').map(Number);
                 const nowMinutes = localH * 60 + localM;
+                const dateKey = getLocalDateKey(userTimezone);
 
                 for (const prayerName of NOTIFIABLE_PRAYERS) {
                     const prayerMinutes = parseTimeToMinutes(timings[prayerName]);
                     const preAdhanMinutes = prayerMinutes - 10;
-                    const diff = Math.abs(nowMinutes - preAdhanMinutes);
+                    const diff = nowMinutes - preAdhanMinutes;
 
-                    if (diff <= 1) {
+                    if (diff >= 0 && diff <= 5) {
+                        const dedupKey = `${dateKey}:${prayerName}`;
+
+                        const usersToNotify: string[] = [];
+                        for (const userId of group.userIds) {
+                            const { data: existing } = await supabase
+                                .from('prayer_notifications')
+                                .select('id')
+                                .eq('user_id', userId)
+                                .eq('dedup_key', dedupKey)
+                                .maybeSingle();
+
+                            if (!existing) {
+                                usersToNotify.push(userId);
+                            }
+                        }
+
+                        if (usersToNotify.length === 0) {
+                            results.push(`${locKey}: ${prayerName} already sent`);
+                            continue;
+                        }
+
                         const label = PRAYER_LABELS[prayerName];
                         const timeStr = timings[prayerName].replace(/\s*\(.*\)/, '');
 
@@ -147,7 +179,7 @@ export async function GET(request: Request) {
                                     body: JSON.stringify({
                                         app_id: onesignalAppId,
                                         include_aliases: {
-                                            external_id: group.userIds,
+                                            external_id: usersToNotify,
                                         },
                                         target_channel: 'push',
                                         headings: { en: `🕌 ${label} dalam 10 menit` },
@@ -160,8 +192,16 @@ export async function GET(request: Request) {
                             );
 
                             if (notifRes.ok) {
-                                totalSent += group.userIds.length;
-                                results.push(`${locKey}: Sent ${label} alert to ${group.userIds.length} users`);
+                                const rows = usersToNotify.map((uid) => ({
+                                    user_id: uid,
+                                    dedup_key: dedupKey,
+                                    prayer_name: prayerName,
+                                    sent_at: new Date().toISOString(),
+                                }));
+                                await supabase.from('prayer_notifications').insert(rows);
+
+                                totalSent += usersToNotify.length;
+                                results.push(`${locKey}: Sent ${label} alert to ${usersToNotify.length} users`);
                             } else {
                                 const errBody = await notifRes.text();
                                 results.push(`${locKey}: OneSignal error for ${label}: ${errBody}`);
@@ -189,3 +229,4 @@ export async function GET(request: Request) {
         );
     }
 }
+
