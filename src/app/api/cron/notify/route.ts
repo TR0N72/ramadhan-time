@@ -64,14 +64,10 @@ export async function GET(request: Request) {
                         },
                         body: JSON.stringify({
                             app_id: onesignalAppId,
-                            filters: [
-                                {
-                                    field: 'tag',
-                                    key: 'user_id',
-                                    relation: '=',
-                                    value: agenda.user_id,
-                                },
-                            ],
+                            include_aliases: {
+                                external_id: [agenda.user_id],
+                            },
+                            target_channel: 'push',
                             headings: { en: 'Ramadhan Time' },
                             contents: {
                                 en: `⏰ ${agenda.task_name}`,

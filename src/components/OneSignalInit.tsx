@@ -19,7 +19,7 @@ export default function OneSignalInit() {
                 const supabase = createClient();
                 const { data: { user } } = await supabase.auth.getUser();
                 if (user) {
-                    await OneSignal.sendTag('user_id', user.id);
+                    await OneSignal.login(user.id);
                 }
             } catch (err) {
                 console.error('OneSignal init failed:', err);
