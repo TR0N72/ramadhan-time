@@ -16,6 +16,8 @@ export default function OneSignalInit() {
                     allowLocalhostAsSecureOrigin: true,
                 });
 
+                await OneSignal.Slidedown.promptPush();
+
                 const supabase = createClient();
                 const { data: { user } } = await supabase.auth.getUser();
                 if (user) {
