@@ -21,6 +21,11 @@ export default function SettingsPage() {
     const [search, setSearch] = useState('');
     const router = useRouter();
 
+    const [hijriAdjustment, setHijriAdjustment] = useState(0);
+    const [adminSecret, setAdminSecret] = useState('');
+    const [hijriSaving, setHijriSaving] = useState(false);
+    const [hijriMessage, setHijriMessage] = useState<string | null>(null);
+
     useEffect(() => {
         const supabase = createClient();
         supabase.auth.getUser().then(async ({ data: { user } }) => {
@@ -51,6 +56,11 @@ export default function SettingsPage() {
 
             setLoading(false);
         });
+
+        fetch('/api/hijri-offset')
+            .then((res) => res.json())
+            .then((data) => setHijriAdjustment(data.adjustment ?? 0))
+            .catch(() => { });
     }, [router]);
 
     const handleSave = async () => {
@@ -81,6 +91,33 @@ export default function SettingsPage() {
             );
         } finally {
             setSaving(false);
+        }
+    };
+
+    const handleHijriSave = async () => {
+        setHijriSaving(true);
+        setHijriMessage(null);
+
+        try {
+            const res = await fetch('/api/hijri-offset', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${adminSecret}`,
+                },
+                body: JSON.stringify({ adjustment: hijriAdjustment }),
+            });
+
+            const data = await res.json();
+            if (!res.ok) {
+                setHijriMessage(`Error: ${data.error}`);
+            } else {
+                setHijriMessage(`Offset set to ${hijriAdjustment}`);
+            }
+        } catch {
+            setHijriMessage('Error: Failed to update');
+        } finally {
+            setHijriSaving(false);
         }
     };
 
@@ -251,6 +288,106 @@ export default function SettingsPage() {
                             ))}
                         </div>
                     )}
+                </Card>
+
+                <Card style={{ marginBottom: '16px' }}>
+                    <div
+                        style={{
+                            fontSize: '11px',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.1em',
+                            color: 'var(--fg-muted)',
+                            marginBottom: '16px',
+                        }}
+                    >
+                        &#47;&#47; HIJRI DATE ADJUSTMENT (ADMIN)
+                    </div>
+                    <div
+                        style={{
+                            fontSize: '10px',
+                            color: 'var(--fg-muted)',
+                            marginBottom: '12px',
+                        }}
+                    >
+                        Adjust Hijri date to match Sidang Isbat. Current offset applied globally.
+                    </div>
+                    <div
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '12px',
+                            marginBottom: '12px',
+                        }}
+                    >
+                        <button
+                            onClick={() => setHijriAdjustment((v) => Math.max(-2, v - 1))}
+                            style={{
+                                width: '36px',
+                                height: '36px',
+                                border: '1px solid var(--border)',
+                                background: 'transparent',
+                                color: 'var(--fg)',
+                                fontSize: '18px',
+                                cursor: 'pointer',
+                                fontFamily: 'var(--font-mono)',
+                            }}
+                        >
+                            −
+                        </button>
+                        <div
+                            style={{
+                                fontSize: '24px',
+                                fontWeight: 700,
+                                color: hijriAdjustment === 0 ? 'var(--fg-muted)' : 'var(--accent)',
+                                minWidth: '40px',
+                                textAlign: 'center',
+                                fontVariantNumeric: 'tabular-nums',
+                            }}
+                        >
+                            {hijriAdjustment > 0 ? `+${hijriAdjustment}` : hijriAdjustment}
+                        </div>
+                        <button
+                            onClick={() => setHijriAdjustment((v) => Math.min(2, v + 1))}
+                            style={{
+                                width: '36px',
+                                height: '36px',
+                                border: '1px solid var(--border)',
+                                background: 'transparent',
+                                color: 'var(--fg)',
+                                fontSize: '18px',
+                                cursor: 'pointer',
+                                fontFamily: 'var(--font-mono)',
+                            }}
+                        >
+                            +
+                        </button>
+                    </div>
+                    <Input
+                        label="Admin Secret"
+                        placeholder="Enter secret to save..."
+                        value={adminSecret}
+                        onChange={(e) => setAdminSecret(e.target.value)}
+                    />
+                    {hijriMessage && (
+                        <div
+                            style={{
+                                fontSize: '11px',
+                                marginTop: '8px',
+                                color: hijriMessage.startsWith('Error') ? 'var(--danger)' : 'var(--accent)',
+                            }}
+                        >
+                            {hijriMessage}
+                        </div>
+                    )}
+                    <Button
+                        variant="accent"
+                        size="sm"
+                        onClick={handleHijriSave}
+                        loading={hijriSaving}
+                        style={{ width: '100%', marginTop: '12px' }}
+                    >
+                        SAVE HIJRI OFFSET
+                    </Button>
                 </Card>
 
                 {message && (

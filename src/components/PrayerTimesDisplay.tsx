@@ -8,13 +8,9 @@ import PrayerCard from '@/components/PrayerCard';
 import { PrayerSkeleton } from '@/components/ui/Skeleton';
 import Button from '@/components/ui/Button';
 
-function getCacheKey(lat: number, lng: number): string {
-    let d = new Date();
-    if (d.getHours() < 5) {
-        d = new Date(d.getTime() - 24 * 60 * 60 * 1000);
-    }
-    const dateKey = d.toISOString().split('T')[0];
-    return `prayer-cache-${dateKey}-${lat.toFixed(2)}-${lng.toFixed(2)}`;
+function getCacheKey(lat: number, lng: number, adjustment: number): string {
+    const dateKey = new Date().toISOString().split('T')[0];
+    return `prayer-cache-${dateKey}-${lat.toFixed(2)}-${lng.toFixed(2)}-adj${adjustment}`;
 }
 
 export default function PrayerTimesDisplay() {
@@ -24,17 +20,22 @@ export default function PrayerTimesDisplay() {
     const [error, setError] = useState<string | null>(null);
     const [countdown, setCountdown] = useState('--:--:--');
     const [now, setNow] = useState(0);
+    const [hijriAdjustment, setHijriAdjustment] = useState<number | null>(null);
 
     useEffect(() => {
         setNow(Date.now());
+        fetch('/api/hijri-offset')
+            .then((res) => res.json())
+            .then((data) => setHijriAdjustment(data.adjustment ?? 0))
+            .catch(() => setHijriAdjustment(0));
     }, []);
 
     const loadPrayerTimes = useCallback(async () => {
-        if (!location) return;
+        if (!location || hijriAdjustment === null) return;
         setLoading(true);
         setError(null);
 
-        const cacheKey = getCacheKey(location.latitude, location.longitude);
+        const cacheKey = getCacheKey(location.latitude, location.longitude, hijriAdjustment);
         const cached = localStorage.getItem(cacheKey);
         if (cached) {
             try {
@@ -48,7 +49,7 @@ export default function PrayerTimesDisplay() {
         }
 
         try {
-            const data = await fetchPrayerTimes(location.latitude, location.longitude);
+            const data = await fetchPrayerTimes(location.latitude, location.longitude, undefined, hijriAdjustment);
             setSchedule(data);
             localStorage.setItem(cacheKey, JSON.stringify(data));
         } catch (err) {
@@ -56,7 +57,7 @@ export default function PrayerTimesDisplay() {
         } finally {
             setLoading(false);
         }
-    }, [location]);
+    }, [location, hijriAdjustment]);
 
     useEffect(() => {
         loadPrayerTimes();

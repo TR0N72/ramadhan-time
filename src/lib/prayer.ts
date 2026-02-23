@@ -28,20 +28,16 @@ function subtractMinutes(timestamp: number, minutes: number): number {
 export async function fetchPrayerTimes(
     latitude: number,
     longitude: number,
-    date?: Date
+    date?: Date,
+    hijriAdjustment: number = 0
 ): Promise<PrayerSchedule> {
-    let d = date || new Date();
-
-    // Before Fajr (midnight–5AM), use yesterday's date so the Hijri date
-    // and prayer schedule reflect the current fasting day (still previous day)
-    if (!date && d.getHours() < 5) {
-        d = new Date(d.getTime() - 24 * 60 * 60 * 1000);
-    }
+    const d = date || new Date();
 
     const dateStr = `${d.getDate()}-${d.getMonth() + 1}-${d.getFullYear()}`;
     const isoDate = d.toISOString().split('T')[0];
 
-    const url = `https://api.aladhan.com/v1/timings/${dateStr}?latitude=${latitude}&longitude=${longitude}&method=11`;
+    const adjustParam = hijriAdjustment !== 0 ? `&adjustment=${hijriAdjustment}` : '';
+    const url = `https://api.aladhan.com/v1/timings/${dateStr}?latitude=${latitude}&longitude=${longitude}&method=11${adjustParam}`;
 
     const response = await fetch(url);
     if (!response.ok) {
