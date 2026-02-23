@@ -29,9 +29,21 @@ export async function updateSession(request: NextRequest) {
         }
     );
 
-    const {
-        data: { user },
-    } = await supabase.auth.getUser();
+    let user = null;
+    try {
+        const { data } = await supabase.auth.getUser();
+        user = data.user;
+    } catch (err: unknown) {
+        const authErr = err as { code?: string };
+        if (authErr?.code === 'refresh_token_not_found') {
+            // Stale refresh token — clear broken auth cookies
+            request.cookies.getAll().forEach((cookie) => {
+                if (cookie.name.startsWith('sb-')) {
+                    supabaseResponse.cookies.delete(cookie.name);
+                }
+            });
+        }
+    }
 
     const protectedRoutes = ['/dashboard', '/settings'];
     const isProtected = protectedRoutes.some((route) =>
@@ -41,7 +53,14 @@ export async function updateSession(request: NextRequest) {
     if (!user && isProtected) {
         const url = request.nextUrl.clone();
         url.pathname = '/login';
-        return NextResponse.redirect(url);
+        const redirectResponse = NextResponse.redirect(url);
+        // Also clear stale cookies on redirect
+        request.cookies.getAll().forEach((cookie) => {
+            if (cookie.name.startsWith('sb-')) {
+                redirectResponse.cookies.delete(cookie.name);
+            }
+        });
+        return redirectResponse;
     }
 
     return supabaseResponse;
