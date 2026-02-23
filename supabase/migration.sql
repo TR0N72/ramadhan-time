@@ -58,6 +58,14 @@ CREATE POLICY "Users can delete own agendas"
 -- Enable Realtime for agendas
 ALTER PUBLICATION supabase_realtime ADD TABLE agendas;
 
+-- Indexes for cron job queries
+CREATE INDEX IF NOT EXISTS idx_agendas_notification_lookup
+  ON agendas (is_notified, target_time)
+  WHERE is_notified = FALSE;
+
+CREATE INDEX IF NOT EXISTS idx_agendas_user_time
+  ON agendas (user_id, target_time);
+
 -- Create trigger to auto-create profile on signup
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$

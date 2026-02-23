@@ -18,6 +18,7 @@ interface AgendaListProps {
 
 export default function AgendaList({ userId }: AgendaListProps) {
     const [agendas, setAgendas] = useState<Agenda[]>([]);
+    const [flashIds, setFlashIds] = useState<Set<string>>(new Set());
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [taskName, setTaskName] = useState('');
@@ -57,10 +58,19 @@ export default function AgendaList({ userId }: AgendaListProps) {
                 },
                 (payload) => {
                     if (payload.eventType === 'INSERT') {
+                        const newItem = payload.new as Agenda;
+                        setFlashIds((prev) => new Set(prev).add(newItem.id));
+                        setTimeout(() => {
+                            setFlashIds((prev) => {
+                                const next = new Set(prev);
+                                next.delete(newItem.id);
+                                return next;
+                            });
+                        }, 600);
                         setAgendas((prev) => {
-                            if (prev.find((a) => a.id === (payload.new as Agenda).id))
+                            if (prev.find((a) => a.id === newItem.id))
                                 return prev;
-                            return [...prev, payload.new as Agenda].sort(
+                            return [...prev, newItem].sort(
                                 (a, b) =>
                                     new Date(a.target_time).getTime() -
                                     new Date(b.target_time).getTime()
@@ -92,11 +102,22 @@ export default function AgendaList({ userId }: AgendaListProps) {
         e.preventDefault();
         if (!taskName.trim() || !targetTime) return;
 
+        if (taskName.trim().length > 100) {
+            setError('Task name must be 100 characters or fewer');
+            return;
+        }
+
+        const targetDate = new Date(targetTime);
+        if (targetDate.getTime() <= Date.now()) {
+            setError('Target time must be in the future');
+            return;
+        }
+
         try {
             await createAgenda({
                 user_id: userId,
                 task_name: taskName.trim(),
-                target_time: new Date(targetTime).toISOString(),
+                target_time: targetDate.toISOString(),
             });
             setTaskName('');
             setTargetTime('');
@@ -120,9 +141,12 @@ export default function AgendaList({ userId }: AgendaListProps) {
     };
 
     const handleDelete = async (id: string) => {
+        const prev = agendas;
+        setAgendas((a) => a.filter((item) => item.id !== id));
         try {
             await deleteAgenda(id);
         } catch (err) {
+            setAgendas(prev);
             setError(err instanceof Error ? err.message : 'Failed to delete agenda');
         }
     };
@@ -215,7 +239,7 @@ export default function AgendaList({ userId }: AgendaListProps) {
                     {agendas.map((agenda) => (
                         <div
                             key={agenda.id}
-                            className="flash-update"
+                            className={flashIds.has(agenda.id) ? 'flash-update' : ''}
                             style={{
                                 border: '1px solid var(--border)',
                                 padding: '12px 16px',

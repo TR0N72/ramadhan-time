@@ -7,7 +7,7 @@ const PRAYER_NAMES: PrayerName[] = [
 function parseTime(timeStr: string, dateStr: string): number {
     const clean = timeStr.replace(/\s*\(.*\)/, '');
     const [hours, minutes] = clean.split(':').map(Number);
-    const date = new Date(dateStr);
+    const date = new Date(dateStr + 'T00:00:00');
     date.setHours(hours, minutes, 0, 0);
     return date.getTime();
 }
@@ -92,7 +92,7 @@ export async function fetchPrayerTimes(
 
 export function getNextPrayer(prayers: PrayerTime[]): PrayerTime | null {
     const now = Date.now();
-    const prayerOnly = prayers.filter((p) => p.name !== 'Sunrise');
+    const prayerOnly = prayers.filter((p) => p.name !== 'Sunrise' && p.name !== 'Imsak');
     for (const prayer of prayerOnly) {
         if (prayer.timestamp > now) {
             return prayer;

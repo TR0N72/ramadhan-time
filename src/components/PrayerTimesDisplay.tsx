@@ -1,12 +1,17 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { PrayerSchedule } from '@/types';
 import { fetchPrayerTimes, getNextPrayer, getCountdown } from '@/lib/prayer';
 import { useLocation } from '@/components/LocationProvider';
 import PrayerCard from '@/components/PrayerCard';
 import { PrayerSkeleton } from '@/components/ui/Skeleton';
 import Button from '@/components/ui/Button';
+
+function getCacheKey(lat: number, lng: number): string {
+    const today = new Date().toISOString().split('T')[0];
+    return `prayer-cache-${today}-${lat.toFixed(2)}-${lng.toFixed(2)}`;
+}
 
 export default function PrayerTimesDisplay() {
     const { location } = useLocation();
@@ -20,23 +25,38 @@ export default function PrayerTimesDisplay() {
         setNow(Date.now());
     }, []);
 
-    const loadPrayerTimes = async () => {
+    const loadPrayerTimes = useCallback(async () => {
         if (!location) return;
         setLoading(true);
         setError(null);
+
+        const cacheKey = getCacheKey(location.latitude, location.longitude);
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+            try {
+                const parsed = JSON.parse(cached) as PrayerSchedule;
+                setSchedule(parsed);
+                setLoading(false);
+                return;
+            } catch {
+                localStorage.removeItem(cacheKey);
+            }
+        }
+
         try {
             const data = await fetchPrayerTimes(location.latitude, location.longitude);
             setSchedule(data);
+            localStorage.setItem(cacheKey, JSON.stringify(data));
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to load prayer times');
         } finally {
             setLoading(false);
         }
-    };
+    }, [location]);
 
     useEffect(() => {
         loadPrayerTimes();
-    }, [location]);
+    }, [loadPrayerTimes]);
 
     useEffect(() => {
         if (!schedule) return;

@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import OneSignalInit from '@/components/OneSignalInit';
 import IOSInstallPrompt from '@/components/IOSInstallPrompt';
+import ErrorBoundary from '@/components/ErrorBoundary';
 
 export const metadata: Metadata = {
   title: 'Ramadhan Time',
@@ -33,13 +34,13 @@ export default function RootLayout({
     <html lang="en">
       <head>
         <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-192x192.png" />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
       </head>
       <body>
-        <OneSignalInit />
-        {children}
-        <IOSInstallPrompt />
+        <ErrorBoundary>
+          <OneSignalInit />
+          {children}
+          <IOSInstallPrompt />
+        </ErrorBoundary>
       </body>
     </html>
   );

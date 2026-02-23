@@ -1,9 +1,8 @@
 import { createClient } from '@/lib/supabase/client';
 import { Agenda, AgendaInsert, AgendaUpdate } from '@/types';
 
-const supabase = createClient();
-
 export async function getAgendas(userId: string): Promise<Agenda[]> {
+    const supabase = createClient();
     const { data, error } = await supabase
         .from('agendas')
         .select('*')
@@ -15,6 +14,7 @@ export async function getAgendas(userId: string): Promise<Agenda[]> {
 }
 
 export async function createAgenda(agenda: AgendaInsert): Promise<Agenda> {
+    const supabase = createClient();
     const { data, error } = await supabase
         .from('agendas')
         .insert(agenda)
@@ -29,6 +29,7 @@ export async function updateAgenda(
     id: string,
     updates: AgendaUpdate
 ): Promise<Agenda> {
+    const supabase = createClient();
     const { data, error } = await supabase
         .from('agendas')
         .update(updates)
@@ -41,6 +42,7 @@ export async function updateAgenda(
 }
 
 export async function deleteAgenda(id: string): Promise<void> {
+    const supabase = createClient();
     const { error } = await supabase.from('agendas').delete().eq('id', id);
 
     if (error) throw error;

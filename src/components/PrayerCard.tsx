@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { PrayerTime } from '@/types';
 
 interface PrayerCardProps {
@@ -10,7 +10,11 @@ interface PrayerCardProps {
 }
 
 export default function PrayerCard({ prayer, isNext, isPreAdhan }: PrayerCardProps) {
-    const isPast = prayer.timestamp < Date.now();
+    const [isPast, setIsPast] = useState(false);
+
+    useEffect(() => {
+        setIsPast(prayer.timestamp < Date.now());
+    }, [prayer.timestamp]);
 
     return (
         <div

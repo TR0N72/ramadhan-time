@@ -5,7 +5,12 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
     const authHeader = request.headers.get('authorization');
-    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    const cronSecret = request.headers.get('x-vercel-cron-secret');
+    const isAuthorized =
+        authHeader === `Bearer ${process.env.CRON_SECRET}` ||
+        cronSecret === process.env.CRON_SECRET;
+
+    if (!isAuthorized) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -16,13 +21,13 @@ export async function GET(request: Request) {
         );
 
         const now = new Date();
-        const oneMinuteAgo = new Date(now.getTime() - 60 * 1000);
+        const windowStart = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
         const { data: agendas, error } = await supabase
             .from('agendas')
             .select('*, profiles!inner(username)')
             .eq('is_notified', false)
-            .gte('target_time', oneMinuteAgo.toISOString())
+            .gte('target_time', windowStart.toISOString())
             .lte('target_time', now.toISOString());
 
         if (error) {

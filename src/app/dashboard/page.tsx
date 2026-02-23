@@ -30,7 +30,7 @@ export default function DashboardPage() {
         router.refresh();
     };
 
-    if (loading) {
+    if (loading || !user) {
         return (
             <div className="page">
                 <div className="container">
@@ -40,11 +40,6 @@ export default function DashboardPage() {
                 </div>
             </div>
         );
-    }
-
-    if (!user) {
-        router.push('/login');
-        return null;
     }
 
     return (
